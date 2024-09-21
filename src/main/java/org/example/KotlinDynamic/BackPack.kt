@@ -1,61 +1,135 @@
 package org.example.KotlinDynamic
 
+fun knapsack(weights: IntArray, values: IntArray, W: Int, n: Int): Int{
+
+    if(n == 0 || W == 0){
+        return 0
+    }
+
+    // Если вес предмета больше, чем оставшийся вес рюкзака, то все идем дальше и ничего не трогаем
+    return if(weights[n - 1] > W){
+        knapsack(weights, values, W, n - 1)
+    }else{
+        // Мы взяли предмет, уменьшили вместимый вес, прибавили стоимость рюкзачку
+        val takenItem = values[n - 1] + knapsack(weights, values, W - weights[n - 1], n - 1)
+        // ИЛИ мы не взяли предмет, не уменьшили вместимый вес и не прибавили стоимость рюкзачку, чтобы рассмотреть случай без него
+        val notTakenItem = knapsack(weights, values, W, n - 1)
+        // Ну и проверяем, правильно ли мы поступили
+        maxOf(takenItem, notTakenItem)
+    }
+
+}
+
+fun knapsackMemo(weights: IntArray, values: IntArray, W: Int, n: Int, memo: Array<Array<Int?>>): Int{
+    if(n == 0 || W == 0){
+        return 0
+    }
+    if(memo[n][W] != null){
+        return memo[n][W]!!
+    }
+
+    // Если вес предмета больше, чем оставшийся вес рюкзака, то все идем дальше и ничего не трогаем
+    if(weights[n - 1] > W){
+        memo[n][W] = knapsackMemo(weights, values, W, n - 1, memo)
+    }else{
+        // Мы взяли предмет, уменьшили вместимый вес, прибавили стоимость рюкзачку
+        val takenItem = values[n - 1] + knapsackMemo(weights, values, W - weights[n - 1], n - 1, memo)
+        // ИЛИ мы не взяли предмет, не уменьшили вместимый вес и не прибавили стоимость рюкзачку, чтобы рассмотреть случай без него
+        val notTakenItem = knapsackMemo(weights, values, W, n - 1, memo)
+        memo[n][W] = maxOf(takenItem, notTakenItem)
+
+    }
+
+    return memo[n][W]!!
+}
+
+fun knapsackTab(weights: IntArray, values: IntArray, W: Int, n: Int) : Int{
+    if(n == 0 || W == 0){
+        return 0
+    }
+
+    val arr = Array(n + 1){IntArray(W + 1)}
 
 
-val items: MutableMap<Pair<Int, Int>, Int> = mutableMapOf()
+    //Bottom-Up
+    for(i in 1..n){
+        for(j in 0..W){
+            // Если вес больше и тд., то значит он не подходит
+            if(weights[i - 1] > j){
+                arr[i][j] = arr[i-1][j] // переход на следующий элемент
+            } else{
+                //условие если пропускаем предмет
+                val takenItem = arr[i-1][j]
+                //условие если мы берем предмет
+                val notTakenItem = values[i-1] + arr[i-1][j - weights[i-1]]
+                // ну и тут проверка того, что сейчас есть
+                arr[i][j] = maxOf(takenItem, notTakenItem)
+            }
+        }
+    }
+    return arr[n][W]
+}
 
-fun BackPack(size: Int, items: MutableMap<Pair<Int, Int>, Int>): Pair<Int, List<Pair<Int, Int>>>{
-    val weights = items.keys.map { it.first }
-    val values = items.keys.map { it.second }
-    val n = weights.size
-    val arr = IntArray(size + 1)
-    val chosen = Array(n) { BooleanArray(size + 1) }
+fun taken(weights: IntArray, values: IntArray, W: Int, n: Int): List<Int>{
+    val arr = Array(n + 1){IntArray(W + 1)}
+    val takenItems = mutableListOf<Int>()
 
-    for(i in 0 until n) {
-        for (c in (size downTo weights[i])) {
-            val item = arr[c - weights[i]] + values[i]
-            if (arr[c] < item) {
-                arr[c] = item
-                chosen[i][c] = true
+    if(n == 0 || W == 0){
+        return emptyList()
+    }
+
+    //Bottom-Up
+    for(i in 1..n){
+        for(j in 0..W){
+            // Если вес больше и тд., то значит он не подходит
+            if(weights[i - 1] > j){
+                arr[i][j] = arr[i-1][j] // переход на следующий элемент
+            } else{
+                //условие если пропускаем предмет
+                val takenItem = arr[i-1][j]
+                //условие если мы берем предмет
+                val notTakenItem = values[i-1] + arr[i-1][j - weights[i-1]]
+                // ну и тут проверка того, что сейчас есть
+                arr[i][j] = maxOf(takenItem, notTakenItem)
             }
         }
     }
 
-    val selectedItems = mutableListOf<Pair<Int, Int>>()
-    var remainingCapacity = size
-    for (i in n - 1 downTo 0) {
-        if (chosen[i][remainingCapacity]) {
-            selectedItems.add(Pair(weights[i], values[i]))
-            remainingCapacity -= weights[i]
+    println()
+    // Вывод таблицы
+    for (i in 0..n){
+        for(j in 0..W){
+            print("${arr[i][j]} \t")
+        }
+        println()
+    }
+    println()
+
+    var w = W
+    for(i in n downTo 1) {
+        if(arr[i][w] != arr[i-1][w]){
+            takenItems.add(i) // Предмет был взят
+            w -= weights[i - 1] // ну и тут уменьшаем его
         }
     }
 
-    return Pair(arr[size], selectedItems)
+    return takenItems
 }
 
+
 fun main(){
-    for (i in 1..100) {
-        val weight = (1..70).random()
-        val cost = (1..1000).random()
-        items[Pair(weight, cost)] = i
-    }
+    val values = intArrayOf(2, 3, 4, 5)
+    val weights = intArrayOf(1, 1, 2, 2)
+    val W = 5
+    val n = values.size
+    val memo = Array(n+1) { arrayOfNulls<Int>(W+1) }
 
-
-    println("%-10s %-10s %-10s".format("Вес", "Стоимость", "Номер"))
-    println("-".repeat(30))
-
-    for ((key, value) in items) {
-        val (weight, cost) = key
-        println("%-10d %-10d %-10d".format(weight, cost, value))
-    }
-
-    val size = 100
-    val (maxValue, selectedItems) = BackPack(size, items)
-
-    println("Максимальная стоимость: $maxValue")
-    println("Выбранные предметы:")
-    selectedItems.forEach { item ->
-        println("Вес: ${item.first}, Стоимость: ${item.second}")
-    }
-
+    val result = knapsack(weights, values, W, n)
+    println("Max profit: $result")
+    val resultMemo = knapsackMemo(weights, values, W, n, memo)
+    println("Max Memo profit: $resultMemo")
+    val resultTab = knapsackTab(weights, values, W, n)
+    println("Max Tab profit: $resultTab")
+    val resultTabWithPrint = taken(weights, values, W, n)
+    println("Taken items profit: $resultTabWithPrint")
 }
